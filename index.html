@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&family=Noto+Serif+Thai:wght@400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+:root {
+  --fg: #1f1e1d; --muted: #6b6a68; --bg: #faf9f5; --panel: #ffffff; --line: #e6e4dd;
+  --ok: #2e7d4f; --warn: #b26b00; --bad: #c0392b; --c1: #3b6fd8; --ref: #3b6fd8; --crit: #d64545;
+  --grid: #ecebe6; --axis: #c9c7c0; --pop: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #ecebe8; --muted: #a3a19c; --bg: #1c1b1a; --panel: #262624; --line: #3a3936;
+    --ok: #5cc28a; --warn: #e3a64a; --bad: #ef6b5e; --c1: #6c9cf0; --ref: #6c9cf0; --crit: #ef6b5e;
+    --grid: #33322f; --axis: #4d4b47; --pop: #2f2e2c;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: 'Sarabun', system-ui, sans-serif; font-size: 15px; }
+.ww { max-width: 1200px; margin: 0 auto; padding: 24px 20px 48px; display: flex; flex-direction: column; gap: 32px; }
+.ww-title { font-family: 'Noto Serif Thai', serif; font-weight: 400; font-size: 28px; margin: 0; }
+.ww-sub { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+.ww-take { font-size: 16px; line-height: 1.7; margin: 12px 0 0; max-width: 60rem; }
+.ww-take b { font-variant-numeric: tabular-nums; }
+.ww-bar { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; margin-top: 8px; }
+.ww-btn { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font: inherit; cursor: pointer; }
+.ww-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.ww-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ww-card h3 { margin: 0; font-size: 13px; font-weight: 500; color: var(--muted); }
+.ww-big { font-family: 'Noto Serif Thai', serif; font-weight: 400; font-size: 34px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ww-unit { font-size: 13px; color: var(--muted); margin-left: 4px; }
+.ww-note { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ww-sec h2 { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
+.ww-sec .ww-sub { margin: 0 0 10px; }
+.ww-chart { position: relative; min-height: 260px; width: 100%; }
+.ww-chart.sm { min-height: 220px; }
+.ww-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.ww-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+select { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; max-width: 100%; }
+.ww-tip { position: absolute; pointer-events: none; background: var(--pop); border: 1px solid var(--line); box-shadow: 0 4px 16px rgba(0,0,0,.15); border-radius: 6px; padding: 6px 8px; font-size: 12px; white-space: nowrap; z-index: 2; font-variant-numeric: tabular-nums; }
+.ww-tip .k { color: var(--muted); }
+.ww-chart svg text { fill: var(--muted); font-size: 11px; font-family: 'Sarabun', sans-serif; }
+.ww-chart .domain, .ww-chart .tick line { stroke: var(--axis); }
+.ww-chart .grid line { stroke: var(--grid); }
+.ww-chart .grid .domain { display: none; }
+.ww-tablewrap { overflow-x: auto; }
+.ww-table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ww-table th, .ww-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.ww-table th:first-child, .ww-table td:first-child { text-align: left; }
+.ww-table th { color: var(--muted); font-weight: 500; }
+.ww-caveat { border-left: 3px solid var(--warn); padding: 10px 14px; background: var(--panel); border-radius: 8px; font-size: 13px; line-height: 1.6; }
+.ww-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.ww-legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--sw); opacity: var(--op, 1); }
+details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+details ul { font-size: 13px; line-height: 1.7; color: var(--muted); }
+.ww-loading { color: var(--muted); padding: 40px 0; text-align: center; }
+.ww-error { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="ww">
+  <header>
+    <h1 class="ww-title">แดชบอร์ดระบบบำบัดน้ำเสีย (WWTP)</h1>
+    <p class="ww-sub">บันทึกรายวันตั้งแต่ พ.ค. 2568 · ดึงจาก Google Sheet “WWTP Dashboard” ทุกครั้งที่เปิดหน้านี้</p>
+    <p class="ww-take" id="takeaway">กำลังโหลดข้อมูล…</p>
+    <div class="ww-bar"><span id="stamp"></span><button class="ww-btn" id="reload">รีเฟรช</button></div>
+  </header>
+
+  <section class="ww-kpis">
+    <div class="ww-card">
+      <h3>ไฟฟ้าเฉลี่ยต่อวัน · <span id="k-month">—</span></h3>
+      <div><span class="ww-big" id="k-kwh">—</span><span class="ww-unit">kWh/วัน</span></div>
+      <div class="ww-note"><span id="k-kwh-d">—</span> เทียบเดือนก่อน (<span id="k-kwh-p">—</span> kWh/วัน)</div>
+    </div>
+    <div class="ww-card">
+      <h3>วันที่ pH ถังปรับ pH อยู่ในเกณฑ์ 6.5–8.5</h3>
+      <div><span class="ww-big" id="k-ph">—</span><span class="ww-unit">% ของวันที่วัดได้</span></div>
+      <div class="ww-note"><span id="k-ph-d">—</span> จุด เทียบเดือนก่อน · เซนเซอร์ขัดข้อง <span id="k-sf">—</span> วัน</div>
+    </div>
+    <div class="ww-card">
+      <h3>TDS เฉลี่ย (เกณฑ์ &lt; 3,000 ppm)</h3>
+      <div><span class="ww-big" id="k-tds">—</span><span class="ww-unit">ppm</span></div>
+      <div class="ww-note">สูงสุดในเดือน <span id="k-tdsmax">—</span> ppm · เดือนก่อนเฉลี่ย <span id="k-tdsp">—</span></div>
+    </div>
+    <div class="ww-card">
+      <h3>โซดาไฟที่เติม (ตามหมายเหตุ)</h3>
+      <div><span class="ww-big" id="k-soda">—</span><span class="ww-unit">ลิตร</span></div>
+      <div class="ww-note">เดือนก่อน <span id="k-sodap">—</span> ลิตร</div>
+    </div>
+  </section>
+
+  <section class="ww-sec">
+    <h2>การใช้ไฟฟ้าเฉลี่ยต่อวัน รายเดือน</h2>
+    <p class="ww-sub">คำนวณจากผลต่างเลขมิเตอร์ไฟฟ้าวันต่อวัน (kWh)</p>
+    <div class="ww-chart" id="chart-kwh"></div>
+  </section>
+
+  <section class="ww-sec">
+    <div class="ww-row">
+      <h2>ค่า pH รายวันเทียบเกณฑ์</h2>
+      <select id="ph-tank" aria-label="เลือกจุดวัด pH">
+        <option value="ph_adj">ถังปรับ pH (TK-108) · เกณฑ์ 6.5–8.5</option>
+        <option value="ph_neut">ถัง Neutralization · เกณฑ์ 6.5–8</option>
+        <option value="ph_filter">น้ำหลังกรอง (Filter Water) · เกณฑ์ 5.5–9</option>
+        <option value="ph_aer">ถังเติมอากาศ (Aeration) · เกณฑ์ 5.5–8</option>
+        <option value="ph_dis">น้ำทิ้ง (Discharge) · เกณฑ์ 5.5–9</option>
+      </select>
+    </div>
+    <div class="ww-legend"><span style="--sw: var(--ref); --op: .35">ช่วงเกณฑ์มาตรฐาน</span><span style="--sw: var(--crit)">วันที่หลุดเกณฑ์</span></div>
+    <div class="ww-chart" id="chart-ph"></div>
+  </section>
+
+  <section class="ww-sec">
+    <h2>TDS รายวัน</h2>
+    <p class="ww-sub">เส้นประด้านบนคือเกณฑ์ 3,000 ppm</p>
+    <div class="ww-chart" id="chart-tds"></div>
+  </section>
+
+  <section class="ww-sec">
+    <h2>ระบบชีวภาพ (Activated Sludge)</h2>
+    <p class="ww-sub">วัดเป็นครั้งคราว ประมาณสัปดาห์ละครั้ง · แถบสีคือช่วงเกณฑ์</p>
+    <div class="ww-grid2">
+      <div><div class="ww-note">MLSS (mg/L) · เกณฑ์ 1,500–3,000</div><div class="ww-chart sm" id="chart-mlss"></div></div>
+      <div><div class="ww-note">DO (mg/L) · เกณฑ์ &gt; 2</div><div class="ww-chart sm" id="chart-do"></div></div>
+    </div>
+  </section>
+
+  <section class="ww-sec">
+    <h2>สรุปรายเดือน</h2>
+    <p class="ww-sub">% ในเกณฑ์ = สัดส่วนวันที่ค่าอยู่ในช่วงมาตรฐาน จากวันที่มีค่าวัด</p>
+    <div class="ww-tablewrap">
+      <table class="ww-table">
+        <thead><tr>
+          <th>เดือน</th><th>วันที่บันทึก</th><th>kWh/วัน</th><th>kWh รวม</th>
+          <th>pH ถังปรับ % ในเกณฑ์</th><th>pH Neutral. % ในเกณฑ์</th><th>pH กรอง % ในเกณฑ์</th>
+          <th>TDS เฉลี่ย</th><th>โซดาไฟ (ลิตร)</th><th>วันเซนเซอร์ขัดข้อง</th>
+        </tr></thead>
+        <tbody id="mtable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="ww-caveat">
+    <b>ไม่ได้แสดง COD และ BOD:</b> ค่าที่บันทึกเกือบทั้งหมดซ้ำเดิมที่ 141.9 / 20.38 (<span id="c-stuck">—</span> จาก <span id="c-total">—</span> วัน) และหมายเหตุระบุ “COD &amp; BOD Error” <span id="c-err">—</span> วัน จึงน่าจะเป็นค่าค้างจากเครื่องวัดขัดข้อง ไม่ใช่ผลวัดจริง ควรตรวจสอบเครื่องวิเคราะห์ก่อนนำค่านี้ไปรายงาน
+  </aside>
+
+  <details>
+    <summary>นิยามและสมมติฐาน</summary>
+    <ul>
+      <li>ไฟฟ้าต่อวัน = เลขมิเตอร์วันนี้ ลบวันก่อนหน้า หารด้วยจำนวนวันที่ห่างกัน</li>
+      <li>เกณฑ์ pH ใช้ตามหัวตารางล่าสุดในไฟล์ (ถัง Neutralization ใช้ 6.5–8)</li>
+      <li>วันที่ช่อง pH บันทึกเป็นข้อความ เช่น “Sensor เสีย” ถูกนับเป็นวันเซนเซอร์ขัดข้อง และไม่นำมาคิดค่า pH</li>
+      <li>ปริมาณโซดาไฟอ่านจากช่องหมายเหตุ (เช่น “เติมโซดาไฟ 5 ลิตร”) วันที่ไม่ได้จดจะไม่ถูกนับ</li>
+      <li>การ์ดด้านบนใช้เดือนล่าสุดที่บันทึกอย่างน้อย 20 วัน</li>
+      <li>เพิ่มเดือนใหม่: ทำสำเนาแท็บเดือนก่อนใน Google Sheet แล้วตั้งชื่อแบบ 2026-12 หน้านี้จะอ่านแท็บใหม่เอง</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+// ---------- calculations ----------
+const LIMITS = { ph_adj: [6.5, 8.5], ph_neut: [6.5, 8], ph_filter: [5.5, 9], ph_aer: [5.5, 8], ph_dis: [5.5, 9], tds: [0, 3000], mlss: [1500, 3000], do: [2, null] };
+const num = (v) => (v === null || v === undefined || v === '' || !isFinite(+v)) ? null : +v;
+
+function buildDaily(log) {
+  const byDate = new Map();
+  for (const r of log) byDate.set(String(r.date), r);
+  const rows = [...byDate.values()]
+    .filter((r) => r.date && (num(r.kwh_meter) !== null || num(r.tds) !== null))
+    .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  let prev = null;
+  return rows.map((r) => {
+    const meter = num(r.kwh_meter);
+    let kwh = null;
+    if (meter !== null && prev) {
+      const gap = (Date.parse(r.date) - Date.parse(prev.date)) / 86400000;
+      if (gap > 0) kwh = Math.round((meter - prev.meter) / gap * 10) / 10;
+    }
+    if (meter !== null) prev = { date: r.date, meter };
+    const note = String(r.note ?? '');
+    const soda = note.includes('โซดาไฟ') ? note.match(/โซดาไฟ\D*?(\d+(?:\.\d+)?)\s*ลิตร/) : null;
+    const isText = (v) => v !== null && v !== undefined && String(v).trim() !== '' && num(v) === null;
+    return { ...r, kwh, soda_l: soda ? +soda[1] : null,
+      sensor_fault: (isText(r.ph_adj) || isText(r.ph_neut) || isText(r.ph_filter)) ? 1 : 0,
+      codbod_error: note.includes('COD & BOD Error') ? 1 : 0 };
+  });
+}
+
+function buildMonthly(daily) {
+  const avg = (a) => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+  const r1 = (x) => x == null ? null : Math.round(x * 10) / 10;
+  const groups = new Map();
+  for (const r of daily) { const m = r.date.slice(0, 7); if (!groups.has(m)) groups.set(m, []); groups.get(m).push(r); }
+  return [...groups].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([month, rows]) => {
+    const col = (k) => rows.map((r) => num(r[k])).filter((v) => v !== null);
+    const kwh = col('kwh');
+    const out = { month, days: rows.length, kwh_total: Math.round(kwh.reduce((s, x) => s + x, 0)), kwh_avg: r1(avg(kwh)) };
+    for (const k of ['ph_adj', 'ph_neut', 'ph_filter']) {
+      const v = col(k);
+      out[k + '_ok_pct'] = v.length ? Math.round(100 * v.filter((x) => x >= LIMITS[k][0] && x <= LIMITS[k][1]).length / v.length) : null;
+    }
+    const tds = col('tds');
+    out.tds_avg = tds.length ? Math.round(avg(tds)) : null;
+    out.tds_max = tds.length ? Math.max(...tds) : null;
+    out.soda_l = col('soda_l').reduce((s, x) => s + x, 0);
+    out.sensor_fault_days = rows.filter((r) => r.sensor_fault === 1).length;
+    return out;
+  });
+}
+
+function buildKpi(monthly) {
+  const full = monthly.filter((m) => m.days >= 20);
+  const c = full[full.length - 1], p = full[full.length - 2];
+  if (!c) return null;
+  const pv = (k) => p && p[k] != null ? p[k] : null;
+  const chg = (a, b) => (a == null || b == null || b === 0) ? null : Math.round(1000 * (a - b) / b) / 10;
+  return { month: c.month, kwh_avg: c.kwh_avg, kwh_avg_prev: pv('kwh_avg'), kwh_chg_pct: chg(c.kwh_avg, pv('kwh_avg')),
+    ph_adj_ok_pct: c.ph_adj_ok_pct,
+    ph_adj_ok_chg: (c.ph_adj_ok_pct != null && pv('ph_adj_ok_pct') != null) ? c.ph_adj_ok_pct - pv('ph_adj_ok_pct') : null,
+    tds_avg: c.tds_avg, tds_avg_prev: pv('tds_avg'), tds_max: c.tds_max,
+    soda_l: c.soda_l, soda_prev: pv('soda_l'), sensor_fault_days: c.sensor_fault_days };
+}
+
+// ---------- drawing helpers ----------
+const TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const parse = d3.utcParse('%Y-%m-%d');
+const ym = (s) => { const [y, m] = String(s).split('-'); return TH[+m - 1] + ' ' + String(+y + 543).slice(2); };
+const dlabel = (dt) => dt.getUTCDate() + ' ' + TH[dt.getUTCMonth()] + ' ' + String(dt.getUTCFullYear() + 543).slice(2);
+const f0 = d3.format(',.0f'), f1 = d3.format(',.1f');
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const reduced = !window.matchMedia || !window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+const $ = (id) => document.getElementById(id);
+const setText = (id, v, fmt) => { const el = $(id); if (el) el.textContent = (v == null || v === '') ? '—' : fmt(v); };
+
+function tipBox(el) {
+  const t = document.createElement('div'); t.className = 'ww-tip'; t.hidden = true; el.appendChild(t);
+  return {
+    show(x, y, lines) {
+      t.replaceChildren(...lines.map(([k, v]) => { const d = document.createElement('div'); const a = document.createElement('span'); a.className = 'k'; a.textContent = k ? k + ' ' : ''; const b = document.createElement('b'); b.textContent = v; d.append(a, b); return d; }));
+      t.hidden = false;
+      const w = t.offsetWidth, W = el.clientWidth;
+      t.style.left = Math.max(0, Math.min(W - w, x + 12)) + 'px';
+      t.style.top = Math.max(0, y - 40) + 'px';
+    },
+    hide() { t.hidden = true; }
+  };
+}
+function yAxisWidth(svg, scale, fmt) {
+  const g = svg.append('g').call(d3.axisLeft(scale).ticks(5).tickFormat(fmt));
+  let w = 0; g.selectAll('text').each(function () { w = Math.max(w, this.getComputedTextLength()); });
+  g.remove(); return Math.ceil(w) + 14;
+}
+
+function series(el, opts) {
+  el.replaceChildren();
+  const W = Math.max(280, el.clientWidth), H = opts.height || 260;
+  const pts = opts.rows.map((r) => ({ d: parse(r.date), v: num(r[opts.key]) })).filter((p) => p.d);
+  const vals = pts.filter((p) => p.v !== null);
+  if (!vals.length) { el.textContent = 'ไม่มีค่าวัดสำหรับจุดนี้'; return; }
+  const band = opts.band;
+  let lo = d3.min(vals, (p) => p.v), hi = d3.max(vals, (p) => p.v);
+  if (band) { if (band[0] != null) lo = Math.min(lo, band[0]); if (band[1] != null) hi = Math.max(hi, band[1]); }
+  if (opts.zero) lo = 0;
+  const pad = (hi - lo) * 0.08 || 1;
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('role', 'img').attr('aria-label', opts.aria);
+  const y = d3.scaleLinear().domain([opts.zero ? 0 : lo - pad, hi + pad]).nice().range([H - 24, 8]);
+  const m = { l: yAxisWidth(svg, y, opts.fmt), r: 28, b: 24 };
+  const x = d3.scaleUtc().domain(d3.extent(pts, (p) => p.d)).range([m.l, W - m.r]);
+  svg.append('g').attr('class', 'grid').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(''));
+  if (band) {
+    if (opts.limitLine) {
+      svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(band[1])).attr('y2', y(band[1])).style('stroke', css('--ref')).attr('stroke-dasharray', '4 3');
+    } else {
+      const top = band[1] != null ? y(band[1]) : y.range()[1], bot = band[0] != null ? y(band[0]) : y.range()[0];
+      svg.append('rect').attr('x', m.l).attr('width', W - m.l - m.r).attr('y', top).attr('height', Math.max(0, bot - top)).style('fill', css('--ref')).style('opacity', .15);
+    }
+  }
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(opts.fmt)).call((g) => g.select('.domain').remove());
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((W - m.l) / 80))).tickFormat((d) => TH[d.getUTCMonth()] + ' ' + String(d.getUTCFullYear() + 543).slice(2)));
+  const out = (v) => band && ((band[0] != null && v < band[0]) || (band[1] != null && v > band[1]));
+  if (!opts.dots) {
+    const line = d3.line().defined((p) => p.v !== null).x((p) => x(p.d)).y((p) => y(p.v));
+    const path = svg.append('path').datum(pts).attr('d', line).attr('fill', 'none').style('stroke', css('--c1')).attr('stroke-width', 1.4);
+    if (!reduced && !el.__drawn) { const L = path.node().getTotalLength(); path.attr('stroke-dasharray', L + ' ' + L).attr('stroke-dashoffset', L).transition().duration(700).attr('stroke-dashoffset', 0).on('end', () => path.attr('stroke-dasharray', null)); }
+  }
+  svg.append('g').selectAll('circle').data(vals.filter((p) => opts.dots || out(p.v))).join('circle')
+    .attr('cx', (p) => x(p.d)).attr('cy', (p) => y(p.v)).attr('r', opts.dots ? 3.5 : 2.2)
+    .style('fill', (p) => out(p.v) ? css('--crit') : css('--c1'));
+  el.__drawn = true;
+  const tip = tipBox(el);
+  const hl = svg.append('circle').attr('r', 4.5).style('fill', 'none').style('stroke', css('--fg')).attr('visibility', 'hidden');
+  const bis = d3.bisector((p) => p.d).center;
+  svg.append('rect').attr('x', m.l).attr('y', 0).attr('width', W - m.l - m.r).attr('height', H - m.b).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px] = d3.pointer(ev, el);
+      const p = vals[bis(vals, x.invert(px))]; if (!p) return;
+      hl.attr('cx', x(p.d)).attr('cy', y(p.v)).attr('visibility', 'visible');
+      tip.show(x(p.d), y(p.v), [['', dlabel(p.d)], [opts.label, opts.fmt(p.v) + (out(p.v) ? ' (หลุดเกณฑ์)' : '')]]);
+    })
+    .on('pointerleave', () => { tip.hide(); hl.attr('visibility', 'hidden'); });
+}
+
+function bars(el, rows) {
+  el.replaceChildren();
+  rows = rows.filter((r) => r.kwh_avg != null);
+  const W = Math.max(280, el.clientWidth), H = 260;
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('role', 'img').attr('aria-label', 'กราฟแท่งการใช้ไฟฟ้าเฉลี่ยต่อวันของแต่ละเดือน');
+  const y = d3.scaleLinear().domain([0, d3.max(rows, (r) => r.kwh_avg) * 1.12]).nice().range([H - 24, 8]);
+  const ml = yAxisWidth(svg, y, f0);
+  const x = d3.scaleBand().domain(rows.map((r) => r.month)).range([ml, W - 8]).padding(0.2);
+  svg.append('g').attr('class', 'grid').attr('transform', `translate(${ml},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - ml - 8)).tickFormat(''));
+  svg.append('g').attr('transform', `translate(${ml},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(f0)).call((g) => g.select('.domain').remove());
+  const every = Math.ceil(rows.length / Math.max(1, Math.floor((W - ml) / 64)));
+  svg.append('g').attr('transform', `translate(0,${H - 24})`).call(d3.axisBottom(x).tickValues(rows.map((r) => r.month).filter((_, i) => i % every === 0)).tickFormat(ym));
+  const b = svg.append('g').selectAll('rect').data(rows).join('rect')
+    .attr('x', (r) => x(r.month)).attr('width', x.bandwidth()).attr('y', (r) => y(r.kwh_avg)).attr('height', (r) => y(0) - y(r.kwh_avg))
+    .attr('rx', 2).style('fill', css('--c1'));
+  if (!reduced && !el.__drawn) b.attr('y', y(0)).attr('height', 0).transition().duration(600).attr('y', (r) => y(r.kwh_avg)).attr('height', (r) => y(0) - y(r.kwh_avg));
+  el.__drawn = true;
+  if (x.bandwidth() >= 24) svg.append('g').selectAll('text').data(rows).join('text')
+    .attr('x', (r) => x(r.month) + x.bandwidth() / 2).attr('y', (r) => y(r.kwh_avg) - 4).attr('text-anchor', 'middle').text((r) => f0(r.kwh_avg));
+  const tip = tipBox(el);
+  b.on('pointermove', (ev, r) => { const [px, py] = d3.pointer(ev, el); tip.show(px, py, [['', ym(r.month)], ['เฉลี่ย', f1(r.kwh_avg) + ' kWh/วัน'], ['รวมทั้งเดือน', f0(r.kwh_total) + ' kWh'], ['บันทึก', r.days + ' วัน']]); })
+    .on('pointerleave', () => tip.hide());
+}
+
+// ---------- page ----------
+let STATE = null;
+const LABEL = { ph_adj: 'pH ถังปรับ pH', ph_neut: 'pH Neutralization', ph_filter: 'pH น้ำหลังกรอง', ph_aer: 'pH ถังเติมอากาศ', ph_dis: 'pH น้ำทิ้ง' };
+const sign = (v, f) => (v > 0 ? '+' : v < 0 ? '−' : '±') + f(Math.abs(v));
+
+function render() {
+  if (!STATE) return;
+  const { daily, monthly, kpi } = STATE;
+  if (kpi) {
+    const take = $('takeaway');
+    take.replaceChildren();
+    const b = (t) => { const e = document.createElement('b'); e.textContent = t; return e; };
+    take.append('เดือนล่าสุดที่มีข้อมูลครบ (', b(ym(kpi.month)), ') ใช้ไฟเฉลี่ย ', b(kpi.kwh_avg == null ? '—' : f1(kpi.kwh_avg)),
+      ' kWh/วัน, pH ถังปรับ pH (TK-108) อยู่ในเกณฑ์ 6.5–8.5 ', b(kpi.ph_adj_ok_pct == null ? '—' : f0(kpi.ph_adj_ok_pct)),
+      '% ของวันที่วัดได้ และ TDS เฉลี่ย ', b(kpi.tds_avg == null ? '—' : f0(kpi.tds_avg)), ' ppm (เกณฑ์ < 3,000 ppm)');
+    setText('k-month', kpi.month, ym);
+    setText('k-kwh', kpi.kwh_avg, f1); setText('k-kwh-p', kpi.kwh_avg_prev, f1);
+    setText('k-kwh-d', kpi.kwh_chg_pct, (v) => sign(v, f1) + '%');
+    $('k-kwh-d').style.color = kpi.kwh_chg_pct == null ? '' : kpi.kwh_chg_pct <= 0 ? 'var(--ok)' : 'var(--bad)';
+    setText('k-ph', kpi.ph_adj_ok_pct, f0); setText('k-ph-d', kpi.ph_adj_ok_chg, (v) => sign(v, f0));
+    $('k-ph-d').style.color = kpi.ph_adj_ok_chg == null ? '' : kpi.ph_adj_ok_chg >= 0 ? 'var(--ok)' : 'var(--bad)';
+    setText('k-sf', kpi.sensor_fault_days, f0);
+    setText('k-tds', kpi.tds_avg, f0); setText('k-tdsmax', kpi.tds_max, f0); setText('k-tdsp', kpi.tds_avg_prev, f0);
+    setText('k-soda', kpi.soda_l, f0); setText('k-sodap', kpi.soda_prev, f0);
+  }
+  bars($('chart-kwh'), monthly);
+  const key = $('ph-tank').value || 'ph_adj';
+  series($('chart-ph'), { rows: daily, key, band: LIMITS[key], label: LABEL[key], fmt: f1, aria: LABEL[key] + ' รายวันเทียบช่วงเกณฑ์มาตรฐาน' });
+  series($('chart-tds'), { rows: daily, key: 'tds', band: LIMITS.tds, limitLine: true, zero: true, label: 'TDS (ppm)', fmt: f0, aria: 'TDS รายวันเทียบเกณฑ์ 3,000 ppm' });
+  series($('chart-mlss'), { rows: daily, key: 'mlss', band: LIMITS.mlss, dots: true, zero: true, height: 220, label: 'MLSS', fmt: f0, aria: 'ค่า MLSS เทียบช่วงเกณฑ์' });
+  series($('chart-do'), { rows: daily, key: 'do', band: LIMITS.do, dots: true, zero: true, height: 220, label: 'DO', fmt: f1, aria: 'ค่า DO เทียบเกณฑ์' });
+  const tb = $('mtable'); tb.replaceChildren();
+  const cols = [['month', ym], ['days', f0], ['kwh_avg', f1], ['kwh_total', f0], ['ph_adj_ok_pct', 'pct'], ['ph_neut_ok_pct', 'pct'], ['ph_filter_ok_pct', 'pct'], ['tds_avg', f0], ['soda_l', f0], ['sensor_fault_days', f0]];
+  for (const r of [...monthly].reverse()) {
+    const tr = document.createElement('tr');
+    for (const [c, f] of cols) {
+      const td = document.createElement('td'); const v = r[c];
+      if (f === 'pct') { td.textContent = v == null ? '—' : v + '%'; if (v != null) td.style.color = v >= 90 ? 'var(--ok)' : v >= 60 ? 'var(--warn)' : 'var(--bad)'; }
+      else td.textContent = v == null ? '—' : f(v);
+      tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  }
+  const stuck = daily.filter((r) => num(r.cod) === 141.9 || num(r.cod) === 142.9).length;
+  setText('c-stuck', stuck, f0); setText('c-total', daily.length, f0);
+  setText('c-err', daily.filter((r) => r.codbod_error === 1).length, f0);
+}
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbyVLQY_gzv8tQThVxRf3nyOFWDz_bfwldqO2WWOw5N16bAuvd1iKoCkwE2SUmdi8Dz2/exec?format=json';
+
+function load() {
+  $('stamp').textContent = 'กำลังโหลด…';
+  fetch(API_URL, { credentials: 'omit', cache: 'no-store' })
+    .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(({ rows, at, error }) => {
+      if (error) throw new Error(error);
+      const daily = buildDaily(rows), monthly = buildMonthly(daily);
+      STATE = { daily, monthly, kpi: buildKpi(monthly) };
+      $('stamp').textContent = 'ข้อมูล ณ ' + new Date(at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+      $('takeaway').className = 'ww-take';
+      render();
+    })
+    .catch((e) => {
+      $('stamp').textContent = '';
+      $('takeaway').className = 'ww-take ww-error';
+      $('takeaway').textContent = 'โหลดข้อมูลไม่สำเร็จ: ' + (e && e.message ? e.message : e);
+    });
+}
+
+$('ph-tank').addEventListener('change', () => { if (!STATE) return; const key = $('ph-tank').value; $('chart-ph').__drawn = false;
+  series($('chart-ph'), { rows: STATE.daily, key, band: LIMITS[key], label: LABEL[key], fmt: f1, aria: LABEL[key] + ' รายวันเทียบช่วงเกณฑ์มาตรฐาน' }); });
+$('reload').addEventListener('click', load);
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+load();
+</script>
+</body>
+</html>
